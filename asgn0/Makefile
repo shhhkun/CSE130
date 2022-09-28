@@ -13,4 +13,4 @@ clean:
 	rm -f split split.o
 
 format:
-	clang format -i -style=file *.[ch]
+	clang-format -i -style=file *.[ch]
