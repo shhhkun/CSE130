@@ -16,15 +16,17 @@ int main(int argc, char *argv[]) {
     uint8_t delim = (int) argv[argc - 1][0];
 
     if (argc < 3) { // not enough args
-        fprintf(stderr, "split: not enough arguments\n"
-                        "usage: ./split <files> <delimiter>\n");
-        return 0;
+        warnx("not enough arguments\n"
+              "usage: %s <files> <delimiter>",
+            argv[0]);
+        exit(1);
     }
 
     if (strlen(argv[argc - 1]) > 1) { // delimiter is longer than 1 char
-        fprintf(stderr, "split: only single-character delimiters allowed\n"
-                        "usage: ./split <files> <delimiter>\n");
-        return 0;
+        warnx("only single-character delimiters allowed\n"
+              "usage: %s <files> <delimiter>",
+            argv[0]);
+        exit(1);
     }
 
     for (int i = 1; i < argc - 1; i += 1) {
