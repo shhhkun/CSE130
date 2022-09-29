@@ -22,13 +22,13 @@ int main(int argc, char *argv[]) {
     }
 
     if (strlen(argv[argc - 1]) > 1) { // delimiter is longer than 1 char
-        fprintf(stderr, "split: only single character delimeters allowed\n"
+        fprintf(stderr, "split: only single-character delimiters allowed\n"
                         "usage: ./split <files> <delimiter>\n");
         return 0;
     }
 
     for (int i = 1; i < argc - 1; i += 1) {
-        if (argv[i][0] == '-' && strlen(argv[i]) == 1) { // if file is '-' take input from stdin
+        if (strcmp(argv[i], "-") == 0) { // if file is '-' take input from stdin
             while ((count = read(STDIN, buf, BLOCK)) > 0) {
                 for (int i = 0; i < count; i += 1) {
                     if (buf[i] == delim) {
