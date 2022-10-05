@@ -5,12 +5,14 @@
 #include <fcntl.h>
 #include <string.h>
 #include <err.h>
+#include <sys/stat.h>
 
 #define BLOCK  4096
 #define STDIN  0
 #define STDOUT 1
 
 int main(int argc, char *argv[]) {
+    struct stat fpath;
     uint8_t buf[BLOCK];
     int count; // # of bytes for read/write calls
     uint8_t delim = (int) argv[argc - 1][0];
@@ -40,8 +42,13 @@ int main(int argc, char *argv[]) {
                 write(STDOUT, buf, count);
             }
         } else { // otherwise open specified file
-            int infile = open(argv[i], O_RDONLY);
+            stat(argv[i], &fpath);
+            if (S_ISREG(fpath.st_mode) == 0) { // check is filename is directory
+                warnx("%s: Is a directory", argv[i]);
+                exit(1);
+            }
 
+            int infile = open(argv[i], O_RDONLY);
             if (infile == -1) { // if file doesnt open
                 warn("%s", argv[i]);
             }
