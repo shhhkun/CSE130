@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
             }
         } else { // otherwise open specified file
             stat(argv[i], &fpath);
-            if (S_ISREG(fpath.st_mode) == 0) { // check is filename is directory
+            if (S_ISREG(fpath.st_mode) == 0) { // check if filename is directory
                 warnx("%s: Is a directory", argv[i]);
                 exit(1);
             }
