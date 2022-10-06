@@ -12,6 +12,7 @@
 #define STDOUT 1
 
 int main(int argc, char *argv[]) {
+    int x = 0; // default return value of program
     struct stat fpath;
     uint8_t buf[BLOCK];
     int count; // # of bytes for read/write calls
@@ -45,12 +46,12 @@ int main(int argc, char *argv[]) {
             stat(argv[i], &fpath);
             if (S_ISDIR(fpath.st_mode) == 1) { // check if filename is directory
                 warnx("%s: Is a directory", argv[i]);
-                exit(1);
+		x = 1;
             }
-
             int infile = open(argv[i], O_RDONLY);
-            if (infile == -1) { // if file doesnt open
+            if (infile == -1) { // if file doesnt open or has no read perms
                 warn("%s", argv[i]);
+		x = 1;
             }
 
             while ((count = read(infile, buf, BLOCK)) > 0) {
@@ -64,5 +65,5 @@ int main(int argc, char *argv[]) {
             close(infile);
         }
     }
-    return 0;
+    return x;
 }
