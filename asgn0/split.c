@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <err.h>
-#include <sys/stat.h>
+#include <errno.h>
 
 #define BLOCK  4096
 #define STDIN  0
@@ -13,7 +13,6 @@
 
 int main(int argc, char *argv[]) {
     int x = 0; // default return value of program
-    struct stat fpath;
     uint8_t buf[BLOCK];
     int count; // # of bytes for read/write calls
     uint8_t delim = (int) argv[argc - 1][0];
@@ -43,15 +42,10 @@ int main(int argc, char *argv[]) {
                 write(STDOUT, buf, count);
             }
         } else { // otherwise open specified file
-            stat(argv[i], &fpath);
-            if (S_ISDIR(fpath.st_mode) == 1) { // check if filename is directory
-                warnx("%s: Is a directory", argv[i]);
-		x = 1;
-            }
-            int infile = open(argv[i], O_RDONLY);
-            if (infile == -1) { // if file doesnt open or has no read perms
-                warn("%s", argv[i]);
-		x = 1;
+            int infile = open(argv[i], O_RDWR);
+            if (infile == -1) { // if filename doesnt exist, is a directory, or has no read perms
+                warnx("%s: %s", argv[i], strerror(errno));
+                x = 1;
             }
 
             while ((count = read(infile, buf, BLOCK)) > 0) {
