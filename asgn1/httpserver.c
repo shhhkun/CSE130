@@ -61,25 +61,34 @@ void head(int connfd, int size, char *resp) {
 
 void put(char *file, int connfd, char *buf, char *header) {
     int content_len;
-    int count;
+    int count, bytes_r = 0;
     char *ptr = strstr(header, "Content-Length:");
     int code = 200; // 'OK'
     if (ptr != NULL) {
-        if (access(file, F_OK) != -1) { // if file doesn't exist
+        if (access(file, F_OK) == -1) { // if file doesn't exist
             code = 201; // change response to 201 'Created'
         }
         sscanf(ptr, "Content-Length: %d", &content_len);
-        printf("content_len = %d", content_len);
-
+        
         int fd = open(file, O_CREAT | O_WRONLY | O_TRUNC);
 
         while ((count = read(connfd, buf, 4096)) > 0) { // read request body
             write(fd, buf, count); // write to replace/update file
-            memset(&buf, 0, sizeof(buf));
-        }
+	    //memset(&buf, 0, sizeof(buf));
+	    bytes_r += count;
+	    if (content_len == bytes_r) {
+		    break;
+	    }
+	}
         close(fd);
+
+	if (code == 200) {
+		response(connfd, buf, "OK\n", code, 3); // 200 'OK'
+	} else {
+		response(connfd, buf, "Created\n", code, 8); // 201 'Created'
+	}
+	return;
     }
-    // insert response
     return;
 }
 
@@ -118,10 +127,10 @@ int main(int argc, char *argv[]) {
             write(1, buf, sizeof(char));
             strcat(header, buf); // concatenate buf (request) into header
             char *end = strstr(header, "\r\n\r\n"); // if end of request break
+	    memset(&buf, 0, sizeof(buf));
             if (end != NULL) {
                 break;
             }
-            memset(&buf, 0, sizeof(buf));
         }
 
         sscanf(header, "%s %s %s", method, filename, vers); // parse request
@@ -129,6 +138,8 @@ int main(int argc, char *argv[]) {
 
         stat(filename, &st);
         int size = st.st_size; // get file size (in bytes)
+
+	memset(&buf, 0, 4096);
 
         // handle request method
         if (strcmp(method, "GET") == 0 || strcmp(method, "get") == 0) {
