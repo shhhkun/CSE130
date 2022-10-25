@@ -8,7 +8,12 @@
 #include <string.h>
 #include <fcntl.h>
 #include <err.h>
+#include <errno.h>
 #include <ctype.h>
+
+#define GET  1
+#define HEAD 2
+#define PUT  3
 
 int validport(char *num) {
     int i = 0;
@@ -34,12 +39,23 @@ char *phrase(int code) {
     return NULL;
 }
 
+int methodtype(char *method) {
+    if (strcmp(method, "GET") == 0 || strcmp(method, "get") == 0) {
+        return GET;
+    } else if (strcmp(method, "HEAD") == 0 || strcmp(method, "head") == 0) {
+        return HEAD;
+    } else if (strcmp(method, "PUT") == 0 || strcmp(method, "put") == 0) {
+        return PUT;
+    }
+    return 0;
+}
+
 void response(int connfd, char *resp, char *body, int code, int size) {
     sprintf(resp, "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n\r\n", code, phrase(code), size);
     if (body != NULL) {
         strcat(resp, body);
     }
-    send(connfd, (void *) resp, strlen(resp), 0);
+    send(connfd, resp, strlen(resp), 0);
     return;
 }
 
@@ -62,32 +78,30 @@ void head(int connfd, int size, char *resp) {
 void put(char *file, int connfd, char *buf, char *header) {
     int content_len;
     int count, bytes_r = 0;
-    char *ptr = strstr(header, "Content-Length:");
-    int code = 200; // 'OK'
+    char *ptr = strstr(header, "Content-Length:"); // move ptr to content len
+    int code = 200; // default 200 'OK'
     if (ptr != NULL) {
         if (access(file, F_OK) == -1) { // if file doesn't exist
             code = 201; // change response to 201 'Created'
         }
         sscanf(ptr, "Content-Length: %d", &content_len);
-        
+
         int fd = open(file, O_CREAT | O_WRONLY | O_TRUNC);
 
-        while ((count = read(connfd, buf, 4096)) > 0) { // read request body
+        while ((count = read(connfd, buf, content_len - bytes_r)) > 0) { // read request body
             write(fd, buf, count); // write to replace/update file
-	    //memset(&buf, 0, sizeof(buf));
-	    bytes_r += count;
-	    if (content_len == bytes_r) {
-		    break;
-	    }
-	}
+            bytes_r += count; // bytes read
+            if (content_len == bytes_r) {
+                break;
+            }
+        }
         close(fd);
 
-	if (code == 200) {
-		response(connfd, buf, "OK\n", code, 3); // 200 'OK'
-	} else {
-		response(connfd, buf, "Created\n", code, 8); // 201 'Created'
-	}
-	return;
+        if (code == 200) {
+            response(connfd, buf, "OK\n", code, 3); // 200 'OK'
+        } else {
+            response(connfd, buf, "Created\n", code, 8); // 201 'Created'
+        }
     }
     return;
 }
@@ -102,7 +116,9 @@ int main(int argc, char *argv[]) {
     struct stat st;
 
     if (argc < 2) {
-        printf("not enough args\n"); // change later
+        warnx("wrong arguments: %s port_num\n"
+              "usage: %s <port>",
+            argv[0], argv[0]);
         exit(1);
     }
 
@@ -111,23 +127,22 @@ int main(int argc, char *argv[]) {
     } else {
         port = strtol(argv[1], NULL, 10); // take port number
     }
-    printf("port = %d\n", port);
 
     int listenfd = create_listen_socket(port);
 
-    if (listenfd == -1) { // change later
-        printf("port error\n");
+    if (listenfd == -3) { // change later
+        warnx("bind: %s", strerror(errno));
         exit(1);
     }
 
     while (1) {
+        int errors = 0; // 0 'false', 1 'true'
         int connfd = accept(listenfd, NULL, NULL); // wait for connection
 
         while ((read(connfd, buf, sizeof(char))) > 0) {
-            write(1, buf, sizeof(char));
             strcat(header, buf); // concatenate buf (request) into header
             char *end = strstr(header, "\r\n\r\n"); // if end of request break
-	    memset(&buf, 0, sizeof(buf));
+            memset(&buf, 0, sizeof(buf));
             if (end != NULL) {
                 break;
             }
@@ -135,18 +150,39 @@ int main(int argc, char *argv[]) {
 
         sscanf(header, "%s %s %s", method, filename, vers); // parse request
         memmove(filename, filename + 1, strlen(filename)); // remove '/' from pathname
+        int method_type = methodtype(method);
 
         stat(filename, &st);
         int size = st.st_size; // get file size (in bytes)
 
-	memset(&buf, 0, 4096);
+        if (strcmp(vers, "HTTP/1.1") != 0 && errors == 0) {
+            response(connfd, buf, "Bad Request\n", 400, 12); // if wrong HTTP version
+            errors = 1;
+        }
+        if ((access(filename, F_OK) == -1 && errors == 0) && method_type != PUT) {
+            response(
+                connfd, buf, "Not Found\n", 404, 10); // if file doesn't exist and not PUT request
+            errors = 1;
+        }
+        if ((access(filename, R_OK) == -1 && errors == 0) && method_type != PUT) {
+            response(connfd, buf, "Forbidden\n", 403, 10); // if no read perms and not PUT request
+            errors = 1;
+        }
+        if ((access(filename, W_OK) == -1 && errors == 0) && method_type == PUT) {
+            response(connfd, buf, "Forbidden\n", 403, 10); // if no write perms and is PUT request
+            errors = 1;
+        }
+        if (method_type != GET || method_type != HEAD || method_type != PUT) {
+            response(connfd, buf, "Not Implemented\n", 501, 16); // if invalid method
+            errors = 1;
+        }
 
         // handle request method
-        if (strcmp(method, "GET") == 0 || strcmp(method, "get") == 0) {
+        if (method_type == GET && errors == 0) {
             get(filename, connfd, buf, body, size, resp);
-        } else if (strcmp(method, "HEAD") == 0 || strcmp(method, "head") == 0) {
+        } else if (method_type == HEAD && errors == 0) {
             head(connfd, size, resp);
-        } else if (strcmp(method, "PUT") == 0 || strcmp(method, "put") == 0) {
+        } else if (method_type == PUT && errors == 0) {
             put(filename, connfd, buf, header);
         }
 
