@@ -10,6 +10,7 @@
 #include <err.h>
 #include <errno.h>
 #include <ctype.h>
+#include <libgen.h>
 
 #define GET  1
 #define HEAD 2
@@ -59,14 +60,14 @@ void response(int connfd, char *resp, char *body, int code, int size) {
     return;
 }
 
-void get(char *file, int connfd, char *buf, char *body, int size, char *resp) {
+void get(char *file, int connfd, char *buf, int size, char *resp) {
+    int count;
     int fd = open(file, O_RDONLY);
-    while (read(fd, buf, 4096) > 0) {
-        strcat(body, buf);
-        memset(&buf, 0, sizeof(buf));
+    response(connfd, resp, NULL, 200, size); // 200 'OK'
+    while ((count = read(fd, buf, 4096)) > 0) {
+        write(connfd, buf, count);
     }
     close(fd);
-    response(connfd, resp, body, 200, size); // 200 'OK'
     return;
 }
 
@@ -88,6 +89,7 @@ void put(char *file, int connfd, char *buf, char *header) {
 
         int fd = open(file, O_CREAT | O_WRONLY | O_TRUNC);
 
+	// note: work on fixing read since it fails if content_len > buf size
         while ((count = read(connfd, buf, content_len - bytes_r)) > 0) { // read request body
             write(fd, buf, count); // write to replace/update file
             bytes_r += count; // bytes read
@@ -111,8 +113,10 @@ int main(int argc, char *argv[]) {
     char header[4096];
     char body[4096];
     char resp[4096];
+    char hfield[4096];
     int port;
-    char method[8], filename[20], vers[9];
+    char method[8], filepath[4096], vers[9];
+    char key[500], value[500];
     struct stat st;
 
     if (argc < 2) {
@@ -136,27 +140,45 @@ int main(int argc, char *argv[]) {
     }
 
     while (1) {
-        int errors = 0; // 0 'false', 1 'true'
+        int errors = 0, not_rq = 1, malformed_header = 0; // 0 'false', 1 'true'
         int connfd = accept(listenfd, NULL, NULL); // wait for connection
 
         while ((read(connfd, buf, sizeof(char))) > 0) {
+            if (not_rq == 0) {
+                strcat(hfield, buf);
+            }
             strcat(header, buf); // concatenate buf (request) into header
+            char *start = strstr(header, "\r\n"); // end of request-line
+            char *mid = strstr(hfield, "\r\n"); // end of a header-field
             char *end = strstr(header, "\r\n\r\n"); // if end of request break
             memset(&buf, 0, sizeof(buf));
+            if (mid != NULL && end == NULL) {
+                int kv = sscanf(hfield, "%s %s", key, value);
+                if (key[strlen(key) - 1] != ':' || kv != 2) {
+                    malformed_header = 1;
+                }
+                memset(&hfield, 0, sizeof(hfield));
+            }
             if (end != NULL) {
                 break;
             }
+            if (start != NULL && not_rq == 1) {
+                not_rq = 0;
+            }
         }
 
-        sscanf(header, "%s %s %s", method, filename, vers); // parse request
-        memmove(filename, filename + 1, strlen(filename)); // remove '/' from pathname
+        sscanf(header, "%s %s %s", method, filepath, vers); // parse request
+	char path[4096] = ".";
+	strcat(path, filepath);
+	char* filename = realpath(path, NULL); // get absolute path
         int method_type = methodtype(method);
 
         stat(filename, &st);
         int size = st.st_size; // get file size (in bytes)
 
-        if (strcmp(vers, "HTTP/1.1") != 0 && errors == 0) {
-            response(connfd, buf, "Bad Request\n", 400, 12); // if wrong HTTP version
+        if ((strcmp(vers, "HTTP/1.1") != 0 || malformed_header == 1) && errors == 0) {
+            response(connfd, buf, "Bad Request\n", 400,
+                12); // if wrong HTTP vers or malformed header-fields
             errors = 1;
         }
         if ((access(filename, F_OK) == -1 && errors == 0) && method_type != PUT) {
@@ -172,14 +194,14 @@ int main(int argc, char *argv[]) {
             response(connfd, buf, "Forbidden\n", 403, 10); // if no write perms and is PUT request
             errors = 1;
         }
-        if (method_type != GET || method_type != HEAD || method_type != PUT) {
+        if (method_type != GET && method_type != HEAD && method_type != PUT) {
             response(connfd, buf, "Not Implemented\n", 501, 16); // if invalid method
             errors = 1;
         }
 
         // handle request method
         if (method_type == GET && errors == 0) {
-            get(filename, connfd, buf, body, size, resp);
+            get(filename, connfd, buf, size, resp);
         } else if (method_type == HEAD && errors == 0) {
             head(connfd, size, resp);
         } else if (method_type == PUT && errors == 0) {
