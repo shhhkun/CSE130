@@ -79,18 +79,18 @@ void head(int connfd, int size, char *resp) {
 
 void put(char *file, int connfd, char *buf, char *header) {
     int content_len;
-    int count, bytes_r = 0;
+    int fd, count, bytes_r = 0;
 
     char *ptr = strstr(header, "Content-Length:"); // move ptr to content len
     int code = 200; // default 200 'OK'
     if (ptr != NULL) {
         if (access(file, F_OK) == -1) { // if file doesn't exist
+            fd = open(file, O_CREAT + O_WRONLY + S_IRUSR + S_IWUSR);
             code = 201; // change response to 201 'Created'
+        } else { // if file does exist
+            fd = open(file, O_TRUNC + O_WRONLY);
         }
         sscanf(ptr, "Content-Length: %d", &content_len);
-
-        int fd = open(file, O_CREAT | O_TRUNC + S_IRUSR + S_IWUSR);
-        //chmod(file, S_IRUSR + S_IWUSR);
 
         while ((count = read(connfd, buf, 4096)) > 0) { // read request body
             write(fd, buf, count); // write to replace/update file
@@ -178,11 +178,6 @@ int main(int argc, char *argv[]) {
         //char path[4096] = ".";
         //strcat(path, filepath);
         //char *filename = realpath(path, NULL); // get absolute path
-        /*
-	printf("method = %s\n", method);
-	printf("path = %s\n", filepath);
-	printf("vers = %s\n", vers);
-	*/
         char *filename = filepath + 1;
         int method_type = methodtype(method);
 
