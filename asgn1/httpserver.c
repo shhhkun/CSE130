@@ -16,6 +16,33 @@
 #define HEAD 2
 #define PUT  3
 
+// type: (0)-method, (1)-filename
+int isvalid(char *str, int type) {
+    int i = 0;
+    if (type == 0) { // check [a-z][A-Z]
+        if (strlen(str) > 8 || str[0] == '\0') {
+            return 1;
+        }
+        while (str[i] != '\0') {
+            if (isalpha(str[i]) == 0) {
+                return 1;
+            }
+            i += 1;
+        }
+    } else if (type == 1) { // check [a-z][A-Z][0-9]_.
+        if (strlen(str) > 19 || str[0] == '\0') {
+            return 1;
+        }
+        while (str[i] != '\0') {
+            if (isalnum(str[i]) == 0 && str[i] != '.' && str[i] != '_') {
+                return 1;
+            }
+            i += 1;
+        }
+    }
+    return 0;
+}
+
 int validport(char *num) {
     int i = 0;
     while (num[i] != '\0') {
@@ -180,12 +207,14 @@ int main(int argc, char *argv[]) {
         //char *filename = realpath(path, NULL); // get absolute path
         char *filename = filepath + 1;
         int method_type = methodtype(method);
+        int validm = isvalid(method, 0);
+        int validf = isvalid(basename(filename), 1);
 
         stat(filename, &st);
         int size = st.st_size; // get file size (in bytes)
 
-        if ((strcmp(vers, "HTTP/1.1") != 0 || method[0] == '\0' || filepath[0] == '\0'
-                || vers[0] == '\0' || malformed_header == 1)
+        if ((strcmp(vers, "HTTP/1.1") != 0 || vers[0] == '\0' || malformed_header == 1
+                || validm == 1 || validf == 1)
             && errors == 0) {
             response(connfd, buf, "Bad Request\n", 400,
                 12); // if wrong HTTP vers, missing stuff, or malformed header-fields
