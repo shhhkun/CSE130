@@ -133,7 +133,6 @@ void put(char *file, int connfd, char *buf, char *header) {
     return;
 }
 
-
 int main(int argc, char *argv[]) {
     char buf[4096];
     char resp[4096];
