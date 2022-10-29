@@ -16,7 +16,6 @@
 #define HEAD 2
 #define PUT  3
 
-// type: (0)-method, (1)-filename
 int isvalid(char *str, int type) {
     int i = 0;
     if (type == 0) { // check [a-z][A-Z]
@@ -84,7 +83,6 @@ void response(int connfd, char *resp, char *body, int code, int size) {
         strcat(resp, body);
     }
     write(connfd, resp, strlen(resp));
-    //send(connfd, resp, strlen(resp), 0);
     return;
 }
 
@@ -107,7 +105,6 @@ void head(int connfd, int size, char *resp) {
 void put(char *file, int connfd, char *buf, char *header) {
     int content_len;
     int fd, count, bytes_r = 0;
-
     char *ptr = strstr(header, "Content-Length:"); // move ptr to content len
     int code = 200; // default 200 'OK'
     if (ptr != NULL) {
@@ -127,7 +124,6 @@ void put(char *file, int connfd, char *buf, char *header) {
             }
         }
         close(fd);
-
         if (code == 200) {
             response(connfd, buf, "OK\n", code, 3); // 200 'OK'
         } else {
@@ -137,16 +133,20 @@ void put(char *file, int connfd, char *buf, char *header) {
     return;
 }
 
+
 int main(int argc, char *argv[]) {
     char buf[4096];
-    char header[4096];
-    char body[4096];
     char resp[4096];
-    char hfield[4096];
+    char header[2048];
+    char hfield[2048];
     int port, errors = 0, not_rq = 1, malformed_header = 0; // 0 'false', 1 'true'
     char method[2048], filepath[2048], vers[2048];
     char key[500], value[500];
     struct stat st;
+
+    memset(&buf, 0, sizeof(buf));
+    memset(&hfield, 0, sizeof(hfield));
+    memset(&header, 0, sizeof(header));
 
     if (argc < 2) {
         warnx("wrong arguments: %s port_num\n"
@@ -202,10 +202,7 @@ int main(int argc, char *argv[]) {
         }
 
         sscanf(header, "%s %s %s", method, filepath, vers); // parse request
-        //char path[4096] = ".";
-        //strcat(path, filepath);
-        //char *filename = realpath(path, NULL); // get absolute path
-        char *filename = filepath + 1;
+        char *filename = filepath + 1; // remove '/' from /path
         int method_type = methodtype(method);
         int validm = isvalid(method, 0);
         int validf = isvalid(basename(filename), 1);
@@ -217,7 +214,7 @@ int main(int argc, char *argv[]) {
                 || validm == 1 || validf == 1)
             && errors == 0) {
             response(connfd, buf, "Bad Request\n", 400,
-                12); // if wrong HTTP vers, missing stuff, or malformed header-fields
+                12); // if wrong HTTP vers, missing stuff, malformed h-field, or wrong range/len
             errors = 1;
             malformed_header = 0;
         }
@@ -259,7 +256,6 @@ int main(int argc, char *argv[]) {
         // reset buffers
         memset(&buf, 0, sizeof(buf));
         memset(&header, 0, sizeof(header));
-        memset(&body, 0, sizeof(body));
         memset(&resp, 0, sizeof(resp));
         memset(&method, 0, sizeof(method));
         memset(&filepath, 0, sizeof(filepath));
