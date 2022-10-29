@@ -16,26 +16,33 @@ done
 
 for i in {1..10}; do
     # Test input file.
-    file="test_files/cantreadme.txt"
+    infile="cantreadme.txt"
+
+    echo "secretttt" > $infile
+    chmod -r $infile
     
     # Expected status code.
     expected=403
 
     # The only thing that is should be printed is the status code.
-    actual=$(curl -s -w "%{http_code}" -o /dev/null localhost:$port/$file -I)
+    actual=$(curl -s -w "%{http_code}" -o /dev/null localhost:$port/$infile -I)
 
     # Check the status code.
     if [[ $actual -ne $expected ]]; then
         # Make sure the server is dead.
         kill -9 $pid
         wait $pid
+	rm -f $infile
         exit 1
     fi
 
+    rm -f $infile
 done
 
 # Make sure the server is dead.
 kill -9 $pid
 wait $pid
+
+rm -f $infile
 
 exit 0
