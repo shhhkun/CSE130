@@ -17,7 +17,7 @@ This program implements a webserver with (simplified) HTTP 1.1 protocol. It take
 ## [design]
 Listed below are a few notable design decisions made when creating this program:
  - No regex:
-     - there are a variety of functions to check range [a-z][A-Z][0-9] such as isalnum() which checks if a character is alphanumeric or numeric
+     - there are a variety of functions to check range [a-z][A-Z][0-9] such as isalnum() which checks if a character is alphabetical or numeric
      - you can also simply compare the character to special characters such as . and _
  - Functions (modularity):
      - separated important/reusable tasks such as retrieving the code phrase, formatting responses
@@ -26,7 +26,7 @@ Listed below are a few notable design decisions made when creating this program:
      - kept buffers that have to deal/store things related to requests to a size of 2048 bytes (requests are MAX 2048 bytes)
      - read/write (mostly) in chunks of 4096 bytes
      - exception of request handling where we read 1 byte at a time which in the end makes it easier to parse the request and detect any potential ill-formated parts
- - Read/write permission handling (for PUT):
+ - Read/Write permission handling (for PUT):
      - in the case that a file exists do not change its read/write perms (assuming no errors were triggered up to this point)
      - in the case that a file does not exist, create it and assign read and write user permissions
 
