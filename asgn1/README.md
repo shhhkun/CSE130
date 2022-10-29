@@ -20,20 +20,20 @@ Listed below are a few notable design decisions made when creating this program:
 ## [instructions]
 To run this program first ensure that the files listed above are present in the same directory. Then run the command **make all** to produce a binary called **httpserver**. To run httpserver use the syntax below:
 
-> ./httpserver <port>
+> ./httpserver <span><port></span>
 
 You may also add a "&" as another argument (following after port) to run the server in the background, to bring it back to the foreground use the command "fg".
 
 #### Now to send valid requests using curl:
 
-> curl http://localhost:<port>/<filepath> -i
+> curl <span>http://localhost:<port>/<filepath> -i</span>
 
 Above is an example of a GET request, to change it to a HEAD request simply change the "-i" to "-I". As for a PUT request:
 
-> curl -X PUT http://localhost:<port>/<filepath> -d "<message body>"
+> curl <span>-X PUT http://localhost:<port>/<filepath> -d "<message body>"</span>
 
 #### Now to send valid requests using netcat:
 
-> printf "<method> /<filepath> HTTP/1.1\r\n<\Header-fields>\r\n<message body>
+> printf <span>"<method> /<filepath> HTTP/1.1\r\n<Header-fields>\r\n<message body>" | nc localhost <port></span>
 
-> Header-fields: <key: value\r\n>
+> Header-fields: <span><key: value\r\n></span>
