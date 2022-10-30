@@ -155,7 +155,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (validport(argv[1]) == 1) { // if port invalid
-        port = 0;
+        warnx("invalid port number: %s", argv[1]);
+        exit(1);
     } else {
         port = strtol(argv[1], NULL, 10); // take port number
     }
@@ -181,7 +182,7 @@ int main(int argc, char *argv[]) {
             char *start = strstr(header, "\r\n"); // end of request-line
             char *mid = strstr(hfield, "\r\n"); // end of a header-field
             char *end = strstr(header, "\r\n\r\n"); // end of a request
-            memset(&buf, 0, sizeof(buf));
+            //memset(&buf, 0, sizeof(buf));
             if (mid != NULL && end == NULL) { // found header-field
                 int kv = sscanf(hfield, "%s %s", key, value);
                 if (key[strlen(key) - 1] != ':' || kv != 2) {
