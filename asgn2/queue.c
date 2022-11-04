@@ -6,10 +6,11 @@
 
 #include "queue.h"
 
-struct queue_t {
+struct queue {
     int head;
     int tail;
     int size; // total capacity
+    int len; // # of elems in queue
     void **elems;
     pthread_mutex_t lock;
     pthread_cond_t full;
@@ -24,6 +25,7 @@ queue_t *queue_new(int size) {
         pthread_cond_init(&q->empty, NULL);
         q->head = 0;
         q->tail = 0;
+        q->len = 0;
         q->size = size;
         //printf("size = %d\n", q->size);
         q->elems = malloc(sizeof(void *) * size);
@@ -49,14 +51,16 @@ void queue_delete(queue_t **q) {
 
 bool queue_push(queue_t *q, void *elem) {
     pthread_mutex_lock(&q->lock);
-    while (q->tail == q->size) { // if full
+    while (q->len == q->size) { // if full
         //printf("QUEUE IS FULL\n");
         pthread_cond_wait(&q->full, &q->lock);
     }
-    q->elems[q->tail] = elem; // push
+    int i = q->tail % q->size;
+    q->elems[i] = elem; // push
     //printf("pushing %d\n", (int) elem);
     q->tail += 1;
 
+    q->len += 1;
     pthread_cond_signal(&q->empty);
     pthread_mutex_unlock(&q->lock);
     return true;
@@ -64,7 +68,7 @@ bool queue_push(queue_t *q, void *elem) {
 
 bool queue_pop(queue_t *q, void **elem) {
     pthread_mutex_lock(&q->lock);
-    while (q->head == q->tail) { // if empty
+    while (q->len == 0) { // if empty
         //printf("QUEUE IS EMPTY\n");
         pthread_cond_wait(&q->empty, &q->lock);
     }
@@ -75,9 +79,12 @@ bool queue_pop(queue_t *q, void **elem) {
         return false;
     }
     */
-    *elem = q->elems[q->head]; // pop (dereference)
+    int i = q->head % q->size;
+    *elem = q->elems[i]; // pop (dereference)
     //printf("popped %d\n", (int) *elem);
     q->head += 1;
+
+    q->len -= 1;
     // if empty after dequeue (assuming not zero-state, reset)
     if (q->head > q->tail) {
         q->head = q->tail = 0;
@@ -86,4 +93,13 @@ bool queue_pop(queue_t *q, void **elem) {
     pthread_cond_signal(&q->full);
     pthread_mutex_unlock(&q->lock);
     return true;
+}
+
+void queue_print(queue_t *q) {
+	printf("queue: ");
+	for (int i = 0; i < q->size; i += 1) {
+		printf("%d, ", (int)q->elems[i]);
+	}
+	printf("\n");
+	return;
 }
