@@ -30,6 +30,9 @@ Once you have produced a binary that includes queue.h then you may use the 4 fun
 The 4 functions included in the queue are:
 
 > queue\_new(size)
+
 > queue\_delete(q)
+
 > queue\_push(q, elem)
+
 > queue\_pop(q, elem)
