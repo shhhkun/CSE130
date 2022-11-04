@@ -20,15 +20,16 @@ struct queue {
 queue_t *queue_new(int size) {
     queue_t *q = (queue_t *) malloc(sizeof(queue_t));
     if (q) {
-        pthread_mutex_init(&q->lock, NULL);
-        pthread_cond_init(&q->full, NULL);
-        pthread_cond_init(&q->empty, NULL);
+        int x = pthread_mutex_init(&q->lock, NULL);
+        int y = pthread_cond_init(&q->full, NULL);
+        int z = pthread_cond_init(&q->empty, NULL);
         q->head = 0;
         q->tail = 0;
         q->len = 0;
         q->size = size;
-        q->elems = malloc(sizeof(void *) * size);
-        if (!q->elems) {
+        q->elems = calloc(size, sizeof(void *));
+	// check that init's and array allocation worked
+        if (!q->elems || x != 0 || y != 0 || z != 0) {
             free(q);
             q = NULL;
         }
