@@ -27,7 +27,6 @@ queue_t *queue_new(int size) {
         q->tail = 0;
         q->len = 0;
         q->size = size;
-        //printf("size = %d\n", q->size);
         q->elems = malloc(sizeof(void *) * size);
         if (!q->elems) {
             free(q);
@@ -50,51 +49,51 @@ void queue_delete(queue_t **q) {
 }
 
 bool queue_push(queue_t *q, void *elem) {
-    pthread_mutex_lock(&q->lock);
-    while (q->len == q->size) { // if full
-        //printf("QUEUE IS FULL\n");
-        pthread_cond_wait(&q->full, &q->lock);
-    }
-    int i = q->tail % q->size;
-    q->elems[i] = elem; // push
-    //printf("pushing %d\n", (int) elem);
-    q->tail += 1;
+    if (q) {
+        pthread_mutex_lock(&q->lock);
+        while (q->len == q->size) { // if full
+            //printf("QUEUE IS FULL\n");
+            pthread_cond_wait(&q->full, &q->lock);
+        }
+        int i = q->tail % q->size;
+        q->elems[i] = elem; // push
+        //printf("pushing %d\n", (int) elem);
+        q->tail += 1;
 
-    q->len += 1;
-    pthread_cond_signal(&q->empty);
-    pthread_mutex_unlock(&q->lock);
-    return true;
+        q->len += 1;
+        pthread_cond_signal(&q->empty);
+        pthread_mutex_unlock(&q->lock);
+        return true;
+    }
+    return false;
 }
 
 bool queue_pop(queue_t *q, void **elem) {
-    pthread_mutex_lock(&q->lock);
-    while (q->len == 0) { // if empty
-        //printf("QUEUE IS EMPTY\n");
-        pthread_cond_wait(&q->empty, &q->lock);
-    }
-    /*
-    if (*elem == NULL) {
-        printf("POP ERROR\n");
+    if (q) {
+        pthread_mutex_lock(&q->lock);
+        while (q->len == 0) { // if empty
+            //printf("QUEUE IS EMPTY\n");
+            pthread_cond_wait(&q->empty, &q->lock);
+        }
+        int i = q->head % q->size;
+        *elem = q->elems[i]; // pop (dereference)
+        //printf("popped %d\n", (int) *elem);
+        q->head += 1;
+
+        q->len -= 1;
+        // if empty after dequeue (assuming not zero-state, reset)
+        if (q->head > q->tail) {
+            q->head = q->tail = 0;
+        }
+
+        pthread_cond_signal(&q->full);
         pthread_mutex_unlock(&q->lock);
-        return false;
+        return true;
     }
-    */
-    int i = q->head % q->size;
-    *elem = q->elems[i]; // pop (dereference)
-    //printf("popped %d\n", (int) *elem);
-    q->head += 1;
-
-    q->len -= 1;
-    // if empty after dequeue (assuming not zero-state, reset)
-    if (q->head > q->tail) {
-        q->head = q->tail = 0;
-    }
-
-    pthread_cond_signal(&q->full);
-    pthread_mutex_unlock(&q->lock);
-    return true;
+    return false;
 }
 
+/*
 void queue_print(queue_t *q) {
 	printf("queue: ");
 	for (int i = 0; i < q->size; i += 1) {
@@ -103,3 +102,4 @@ void queue_print(queue_t *q) {
 	printf("\n");
 	return;
 }
+*/
