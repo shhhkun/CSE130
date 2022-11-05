@@ -34,12 +34,11 @@ void *thread2(void *args) {
     int *v = ((void **) args)[2];
     pthread_cond_t *c = ((void **) args)[3];
 
-
     if (*v != 1) {
-	    pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-	    pthread_mutex_lock(&lock);
-	    pthread_cond_wait(c, &lock);
-	    pthread_mutex_unlock(&lock);
+        pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_lock(&lock);
+        pthread_cond_wait(c, &lock);
+        pthread_mutex_unlock(&lock);
     }
 
     void *ret;
