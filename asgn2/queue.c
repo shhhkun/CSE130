@@ -28,7 +28,7 @@ queue_t *queue_new(int size) {
         q->len = 0;
         q->size = size;
         q->elems = calloc(size, sizeof(void *));
-	// check that init's and array allocation worked
+        // check that init's and array allocation worked
         if (!q->elems || x != 0 || y != 0 || z != 0) {
             free(q);
             q = NULL;
@@ -39,11 +39,11 @@ queue_t *queue_new(int size) {
 
 void queue_delete(queue_t **q) {
     if (*q && (*q)->elems) {
-        free((*q)->elems);
-        free(*q);
         pthread_mutex_destroy(&(*q)->lock);
         pthread_cond_destroy(&(*q)->full);
         pthread_cond_destroy(&(*q)->empty);
+        free((*q)->elems);
+        free(*q);
         *q = NULL;
     }
     return;
@@ -52,15 +52,11 @@ void queue_delete(queue_t **q) {
 bool queue_push(queue_t *q, void *elem) {
     if (q) {
         pthread_mutex_lock(&q->lock);
-        while (q->len == q->size) { // if full
-            //printf("QUEUE IS FULL\n");
+        if (q->len == q->size) { // if full, block
             pthread_cond_wait(&q->full, &q->lock);
         }
-        int i = q->tail % q->size;
-        q->elems[i] = elem; // push
-        //printf("pushing %d\n", (int) elem);
+        q->elems[q->tail % q->size] = elem; // push
         q->tail += 1;
-
         q->len += 1;
         pthread_cond_signal(&q->empty);
         pthread_mutex_unlock(&q->lock);
@@ -72,17 +68,13 @@ bool queue_push(queue_t *q, void *elem) {
 bool queue_pop(queue_t *q, void **elem) {
     if (q) {
         pthread_mutex_lock(&q->lock);
-        while (q->len == 0) { // if empty
-            //printf("QUEUE IS EMPTY\n");
+        if (q->len == 0) { // if empty, block
             pthread_cond_wait(&q->empty, &q->lock);
         }
-        int i = q->head % q->size;
-        *elem = q->elems[i]; // pop (dereference)
-        //printf("popped %d\n", (int) *elem);
+        *elem = q->elems[q->head % q->size]; // pop (dereference)
         q->head += 1;
-
         q->len -= 1;
-        // if empty after dequeue (assuming not zero-state, reset)
+        // if empty after dequeue (assuming not zero-state) reset
         if (q->head > q->tail) {
             q->head = q->tail = 0;
         }
@@ -93,14 +85,3 @@ bool queue_pop(queue_t *q, void **elem) {
     }
     return false;
 }
-
-/*
-void queue_print(queue_t *q) {
-	printf("queue: ");
-	for (int i = 0; i < q->size; i += 1) {
-		printf("%d, ", (int)q->elems[i]);
-	}
-	printf("\n");
-	return;
-}
-*/
