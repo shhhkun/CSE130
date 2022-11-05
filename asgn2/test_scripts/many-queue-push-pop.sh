@@ -1,4 +1,5 @@
-# This test
+# This tests if push and pop on different queues keep the right order when called across
+# multiple threads.
 
 cleanup(){
 	rm -r test_dir
