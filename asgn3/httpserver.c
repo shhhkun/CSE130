@@ -1,5 +1,4 @@
 #include "bind.h"
-#include "queue.h"
 
 #include <sys/socket.h>
 #include <sys/stat.h>
