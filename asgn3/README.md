@@ -27,4 +27,4 @@ First ensure that the files listed are in the same directory, then run the comma
 
 The following CLI options are:
 
-> ./httpserver [-t threads (optional)] [-l logfile (optional)] <port>
+> ./httpserver [-t threads (optional)] [-l logfile (optional)] []()<port[]()>
