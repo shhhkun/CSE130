@@ -62,11 +62,12 @@ char *phrase(int code) {
     case PUT: return "PUT";
     case 200: return "OK";
     case 201: return "Created";
-    case 400: return "Bad Request";
-    case 403: return "Forbidden";
+    //case 400: return "Bad Request";
+    //case 403: return "Forbidden";
     case 404: return "Not Found";
-    case 500: return "Internal Server Error";
-    case 501: return "Not Implemented";
+    case 500:
+        return "Internal Server Error";
+        //case 501: return "Not Implemented";
     }
     return NULL;
 }
@@ -256,8 +257,8 @@ int main(int argc, char *argv[]) {
         if ((strcmp(vers, "HTTP/1.1") != 0 || vers[0] == '\0' || malformed_header == 1
                 || validm == 1 || validf == 1)
             && errors == 0) {
-            response(connfd, buf, "Bad Request\n", 400,
-                12); // if wrong HTTP vers, missing stuff, malformed h-field, or wrong range/len
+            response(connfd, buf, "Internal Server Error\n", 500,
+                22); // if wrong HTTP vers, missing stuff, malformed h-field, or wrong range/len
             errors = 1;
             malformed_header = 0;
         }
@@ -269,22 +270,26 @@ int main(int argc, char *argv[]) {
         }
         if (access(filename, F_OK) == 0) { // first check that file exists
             if ((access(filename, R_OK) == -1 && errors == 0) && method_type != PUT) {
-                response(
-                    connfd, buf, "Forbidden\n", 403, 10); // if no read perms and not PUT request
+                response(connfd, buf, "Internal Server Error\n", 500,
+                    22); // if no read perms and not PUT request
+                logentry(logfd, logresp, method_type, basename(filename), 500, reqid);
                 errors = 1;
             }
             if ((access(filename, W_OK) == -1 && errors == 0) && method_type == PUT) {
-                response(
-                    connfd, buf, "Forbidden\n", 403, 10); // if no write perms and is PUT request
+                response(connfd, buf, "Internal Server Error\n", 500,
+                    22); // if no write perms and is PUT request
+                logentry(logfd, logresp, method_type, basename(filename), 500, reqid);
                 errors = 1;
             }
         }
         if (S_ISDIR(st.st_mode) != 0 && errors == 0) {
-            response(connfd, buf, "Forbidden\n", 403, 10); // if filepath leads to directory
+            response(
+                connfd, buf, "Internal Server Error\n", 500, 22); // if filepath leads to directory
+            logentry(logfd, logresp, method_type, basename(filename), 500, reqid);
             errors = 1;
         }
         if (method_type != GET && method_type != HEAD && method_type != PUT && errors == 0) {
-            response(connfd, buf, "Not Implemented\n", 501, 16); // if invalid method
+            response(connfd, buf, "Internal Server Error\n", 500, 22); // if invalid method
             errors = 1;
         }
 
