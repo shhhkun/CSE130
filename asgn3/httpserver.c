@@ -1,5 +1,6 @@
 #include "bind.h"
 
+#include <signal.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -17,6 +18,8 @@
 #define PUT  3
 
 #define OPTIONS "t:l:"
+
+volatile sig_atomic_t done = 0;
 
 int isvalid(char *str, int type) {
     int i = 0;
@@ -151,6 +154,13 @@ void put(char *file, int connfd, char *buf, char *header, char *logresp, int log
     return;
 }
 
+void term(int signum) {
+    if (signum == SIGTERM) {
+        done = 1; // set to 1 to exit infinite loop
+    }
+    return;
+}
+
 int main(int argc, char *argv[]) {
     char buf[4096];
     char resp[4096];
@@ -163,6 +173,11 @@ int main(int argc, char *argv[]) {
     struct stat st;
     int numthreads = 4; // default 4 threads
     int logfd = 2; // default stderr
+
+    struct sigaction action;
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = term;
+    sigaction(SIGTERM, &action, NULL);
 
     memset(&buf, 0, sizeof(buf));
     memset(&hfield, 0, sizeof(hfield));
@@ -183,9 +198,10 @@ int main(int argc, char *argv[]) {
         }
 
         case 'l': {
-            if (access(optarg, F_OK) == -1) {
+            if (access(optarg, F_OK)
+                == -1) { // if doesnt exist, create and give user read/write perm
                 logfd = open(optarg, O_CREAT | O_WRONLY, 0600);
-            } else {
+            } else { // if does exist truncate file
                 logfd = open(optarg, O_TRUNC | O_WRONLY);
             }
         }
@@ -206,7 +222,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    while (1) {
+    while (!done) {
         int connfd = accept(listenfd, NULL, NULL); // wait for connection
 
         errors = 0;
@@ -313,5 +329,7 @@ int main(int argc, char *argv[]) {
 
         close(connfd);
     }
+
+    close(logfd); // close audit log
     return 0;
 }
