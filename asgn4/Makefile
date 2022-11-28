@@ -1,20 +1,20 @@
-CC = clang
-CFLAGS = -Wall -Wpedantic -Werror -Wextra
-LDFLAGS = -lm
+EXECBIN  = httpserver
 
-all: httpserver
+SOURCES  = $(wildcard *.c)
+OBJECTS  = $(SOURCES:%.c=%.o) queue.o
 
-bind.o: bind.c bind.h
-	$(CC) $(CFLAGS) -c bind.c
+CC       = clang
+CFLAGS   = -Wall -Wpedantic -Werror -Wextra
 
-queue.o: queue.c queue.h
-	$(CC) $(CFLAGS) -c queue.c
+.PHONY: all
 
-httpserver: httpserver.o bind.o queue.o
-	$(CC) $(LDFLAGS) -o httpserver httpserver.o bind.o queue.o
+all: $(EXECBIN)
 
-httpserver.o: httpserver.c bind.h queue.h
-	$(CC) $(CFLAGS) -c httpserver.c
+$(EXECBIN): $(OBJECTS)
+	$(CC) -o $@ $^ -pthread
+
+%.o : %.c
+	$(CC) $(CFLAGS) -c $<
 
 clean:
 	rm -f *.o
@@ -22,3 +22,4 @@ clean:
 
 format:
 	clang-format -i -style=file *.[ch]
+
